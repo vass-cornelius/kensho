@@ -68,7 +68,7 @@ pip3 install google-generativeai
 
 2. Get and Set Your Gemini API Key:
 
-* You can get a free API key from Google AI Studio.
+* You can get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 * For security, it's best to set this key as an environment variable rather than putting it directly in the script. Open your terminal and run this command, replacing YOUR_API_KEY with the key you just obtained:
 
 ```Bash
