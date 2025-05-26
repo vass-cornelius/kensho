@@ -75,12 +75,20 @@ pip3 install google-generativeai
 export GEMINI_API_KEY="YOUR_API_KEY"
 ```
 
+3. Choose Gemini API Version (default: "gemini-1.5-flash-latest")
+You can choose to use another gemini version for monthly summary generation.
+
+```Bash
+export GEMINI_MODEL="gemini-1.5-flash-latest"
+```
+
 _Note_: You'll need to run this export command in every new terminal session, or add it to your shell's startup file (e.g., ~/.zshrc or ~/.bash_profile) to make it permanent.
 
 
 Linux Users:
 ```Bash
 echo 'export GEMINI_API_KEY="YOUR_API_KEY"'
+[optional] echo 'export GEMINI_MODEL="gemini-1.5-flash-latest"'
 echo 'alias daily="python3 ~/daily_logger.py"' >> ~/.bash_profile
 source ~/.bash_profile
 ```
@@ -88,6 +96,7 @@ source ~/.bash_profile
 Mac-Users:
 ```zsh
 echo 'export GEMINI_API_KEY="YOUR_API_KEY"'
+[optional] echo 'export GEMINI_MODEL="gemini-1.5-flash-latest"'
 echo 'alias daily="python3 ~/daily_logger.py"' >> ~/.zshrc
 source ~/.zshrc
 ```

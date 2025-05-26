@@ -75,6 +75,7 @@ def run_monthly_summary(month_arg=None):
         print("\n❌ Error: The 'google-generativeai' library is not installed. Please run 'pip3 install google-generativeai'.")
         return
     api_key = os.getenv("GEMINI_API_KEY")
+    api_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
     if not api_key:
         print("\n❌ Error: The 'GEMINI_API_KEY' environment variable is not set. Please set it to your Google AI API key.")
         return
@@ -195,7 +196,7 @@ def run_monthly_summary(month_arg=None):
 
     print("\nSending data to Gemini for analysis... This may take a moment.")
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel(api_model)
         response = model.generate_content(full_prompt)
         summary_text = response.text
     except Exception as e:
