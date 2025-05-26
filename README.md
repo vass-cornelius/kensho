@@ -76,7 +76,7 @@ export GEMINI_API_KEY="YOUR_API_KEY"
 ```
 
 3. Choose Gemini API Version (default: "gemini-1.5-flash-latest")
-You can choose to use another gemini version for monthly summary generation.
+You can choose to use another [gemini model](https://ai.google.dev/gemini-api/docs/models) version for monthly summary generation.
 
 ```Bash
 export GEMINI_MODEL="gemini-1.5-flash-latest"
