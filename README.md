@@ -17,9 +17,9 @@ In the same way, Kensho doesn't do your work, but it makes your mind visible. It
 ## The Habit: 5 Minutes to End the Loop
 This isn't meant to be a chore. It’s a simple performance habit, not a rigid ritual.
 
-3 quick bullet lists at the end of your day.
-5 minutes, max.
-Skip a day? No guilt. Just start again tomorrow.
+- 3 quick bullet lists at the end of your day.
+- 5 minutes, max.
+- Skip a day? No guilt. Just start again tomorrow.
 
 ## The Payoff: From Solo Insight to Team Velocity
 While it begins as a tool for self-awareness, the benefits multiply when a team adopts the habit:
