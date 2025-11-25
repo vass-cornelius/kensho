@@ -6,6 +6,8 @@ import sys
 import os
 import calendar
 
+from UniversalAtomicSolver.atomic_solver import AtomicSolver
+
 # --- NEW: Import for Gemini API ---
 try:
     import google.generativeai as genai
@@ -75,7 +77,7 @@ def run_monthly_summary(month_arg=None):
         print("\n❌ Error: The 'google-generativeai' library is not installed. Please run 'pip3 install google-generativeai'.")
         return
     api_key = os.getenv("GEMINI_API_KEY")
-    api_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+    api_model = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
     if not api_key:
         print("\n❌ Error: The 'GEMINI_API_KEY' environment variable is not set. Please set it to your Google AI API key.")
         return
@@ -134,9 +136,15 @@ def run_monthly_summary(month_arg=None):
     full_log_text = "\n".join(aggregated_content)
     print(f"Found {len(aggregated_content)} log entries. Total length: {len(full_log_text)} characters.")
 
-    prompt = f"""
-    You are a helpful productivity coach. I am providing you with a collection of my personal logs from a specific period, which includes both daily and weekly entries. Your task is to perform a deep and insightful analysis of these logs to help me understand my work patterns, celebrate successes, identify challenges, and improve in the future.
+    goal = f"""
+    As a helpful productivity coach, your task is to perform a deep and insightful analysis of the personal logs to help me understand my work patterns, celebrate successes, identify challenges, and improve in the future.
+    Generate a report with the exact following structure and headers (For each section, provide thoughtful, data-driven analysis based *only* on the personal logs provided).    
+    """
 
+    # full_prompt = prompt + "\n" + full_log_text
+    context = (f"""
+    I am providing you with a collection of my personal logs from a specific period, which includes both daily and weekly entries. 
+    
     First, understand the structure of my logs:
 
     * **Daily Logs** contain:
@@ -147,9 +155,8 @@ def run_monthly_summary(month_arg=None):
     * **Weekly Logs** contain:
         * **Start of Week (SOW):** `My Goals for the Week`, `Next Steps`, and `Other Tasks`.
         * **End of Week (EOW):** A review with `What went well?`, `What are you happy about?`, `What made you laugh?`, and `Progress observed`.
-
-    Please generate a report with the exact following structure and headers. For each section, provide thoughtful, data-driven analysis based *only* on the log content provided.
-
+        
+    <Report_Template>
     # Productivity & Progress Analysis for <month_name>/<year>
 
     ## 🎯 Executive Summary
@@ -188,17 +195,17 @@ def run_monthly_summary(month_arg=None):
     2.  **To Address Challenges:** Propose one specific strategy to mitigate the most significant recurring blocker you identified.
     3.  **To Improve Alignment:** Recommend one way I can better align my daily tasks with my weekly goals.
     4.  **A Question for Reflection:** Pose one insightful question for me to think about during my next planning session.
-
-    Please begin your analysis. Here are all my logs from the specified period:
-    """
-
-    full_prompt = prompt + "\n" + full_log_text
+    </Report_Template>
+    """) + "\n<personal_logs>" + full_log_text + "\n</personal_logs>"
 
     print("\nSending data to Gemini for analysis... This may take a moment.")
+    solver = AtomicSolver(base_model_name="gemini-2.5-flash", thinking_model_name=api_model, api_key=api_key)
+
     try:
-        model = genai.GenerativeModel(api_model)
-        response = model.generate_content(full_prompt)
-        summary_text = response.text
+        # model = genai.GenerativeModel(api_model)
+        # response = model.generate_content(full_prompt)
+        # summary_text = response.text
+        summary_text = solver.run(goal=goal, context=context)
     except Exception as e:
         print(f"\n❌ An error occurred with the Gemini API: {e}")
         return
