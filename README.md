@@ -43,7 +43,7 @@ $~: python3 ~/daily_logger.py
 ## Usage information
 
 ```bash
-usage: daily_logger.py [-h] [--sow | --eow | --monthly-summary [MONTH]]
+usage: daily_logger.py [-h] [--sow | --eow | --monthly-summary [MONTH]] [--logseq]
 
 A script for daily, weekly, and monthly logging and analysis.
 
@@ -54,19 +54,22 @@ optional arguments:
   --monthly-summary [MONTH]
                         Generate a summary for a specific month of the current year (e.g., 5 for May).
                         If no month number is given, summarizes the previous full month.
+  --logseq              Use Logseq folder structure for reading and writing files.
 ```
 
 
 # ⚠️ Important Setup Steps
 To use the AI summary feature, you'll need to do two things first:
 
-1. Install the Google AI Python Library: Open your terminal and run the following command:
+1. Upgrate Python3 to >= 3.10 ([python.org](https://www.python.org/downloads/))
+
+2. Install the Google AI Python Library: Open your terminal and run the following command:
 
 ```Bash
-pip3 install google-generativeai
+pip3 install google-genai
 ```
 
-2. Get and Set Your Gemini API Key:
+3. Get and Set Your Gemini API Key:
 
 * You can get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 * For security, it's best to set this key as an environment variable rather than putting it directly in the script. Open your terminal and run this command, replacing YOUR_API_KEY with the key you just obtained:
@@ -75,11 +78,11 @@ pip3 install google-generativeai
 export GEMINI_API_KEY="YOUR_API_KEY"
 ```
 
-3. Choose Gemini API Version (default: "gemini-1.5-flash-latest")
+4. Choose Gemini API Version (default: "gemini-1.5-flash-latest")
 You can choose to use another [gemini model](https://ai.google.dev/gemini-api/docs/models) version for monthly summary generation.
 
 ```Bash
-export GEMINI_MODEL="gemini-1.5-flash-latest"
+export GEMINI_MODEL="gemini-2.5-flash"
 ```
 
 _Note_: You'll need to run this export command in every new terminal session, or add it to your shell's startup file (e.g., ~/.zshrc or ~/.bash_profile) to make it permanent.
@@ -88,7 +91,7 @@ _Note_: You'll need to run this export command in every new terminal session, or
 Linux Users:
 ```Bash
 echo 'export GEMINI_API_KEY="YOUR_API_KEY"'
-[optional] echo 'export GEMINI_MODEL="gemini-1.5-flash-latest"'
+[optional] echo 'export GEMINI_MODEL="gemini-2.5-flash"'
 echo 'alias daily="python3 ~/daily_logger.py"' >> ~/.bash_profile
 source ~/.bash_profile
 ```
@@ -96,7 +99,24 @@ source ~/.bash_profile
 Mac-Users:
 ```zsh
 echo 'export GEMINI_API_KEY="YOUR_API_KEY"'
-[optional] echo 'export GEMINI_MODEL="gemini-1.5-flash-latest"'
+[optional] echo 'export GEMINI_MODEL="gemini-2.5-flash"'
 echo 'alias daily="python3 ~/daily_logger.py"' >> ~/.zshrc
 source ~/.zshrc
 ```
+
+# Daily Logseq Setup
+## Journal Template
+Use this template for your daily journal:
+```markdown
+- ## What I did
+	- ...
+- ## What's next
+	- ...
+- ## What broke or got weird
+	- ...
+- ## Productivity Score
+	- ...
+- ## Quick Insights
+	- ...
+```
+You can adapt this template to your needs.

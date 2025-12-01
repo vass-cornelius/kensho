@@ -8,12 +8,6 @@ import calendar
 
 from UniversalAtomicSolver.atomic_solver import AtomicSolver
 
-# --- NEW: Import for Gemini API ---
-try:
-    import google.generativeai as genai
-except ImportError:
-    genai = None
-
 # --- Configuration for Sections (for daily logs) ---
 DAILY_SECTION_ORDER = [
     "What I did", "What's next", "What broke or got weird",
@@ -69,19 +63,9 @@ def get_log_directory() -> Path:
 
 # --- MONTHLY SUMMARY FUNCTIONS (UPDATED) ---
 
-def run_monthly_summary(month_arg=None):
+def run_monthly_summary(month_arg=None, logseq=False):
     """Handles the monthly summary workflow using the Gemini API."""
     print("\n--- 🧠 Monthly Summary & Insights Generation ---")
-
-    if genai is None:
-        print("\n❌ Error: The 'google-generativeai' library is not installed. Please run 'pip3 install google-generativeai'.")
-        return
-    api_key = os.getenv("GEMINI_API_KEY")
-    api_model = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
-    if not api_key:
-        print("\n❌ Error: The 'GEMINI_API_KEY' environment variable is not set. Please set it to your Google AI API key.")
-        return
-    genai.configure(api_key=api_key)
 
     log_dir = get_log_directory()
 
@@ -119,15 +103,38 @@ def run_monthly_summary(month_arg=None):
         _, week, _ = d.isocalendar()
         weeks_in_month.add(week)
 
-    for file_path in log_dir.iterdir():
-        if file_path.suffix == ".md":
-            if file_path.name.startswith(f"daily-log-{target_year}-{target_month:02d}"):
-                aggregated_content.append(f"\n--- Content from {file_path.name} ---\n{file_path.read_text(encoding='utf-8')}")
-            match = re.fullmatch(rf"(\d{{4}})-W(\d{{2}})\.md", file_path.name)
-            if match:
-                log_year, log_week = int(match.group(1)), int(match.group(2))
-                if log_year == target_year and log_week in weeks_in_month:
+    if logseq:
+        """
+        if we want to collect all files from a logseq folder, we need to follow its structure:
+        - log_dir/journal/* contains all the daily logs (YYYY_MM_DD.md)
+        - log_dir/pages/* contains the weekly files (YYYY___WXX (dd.mm. - dd.mm.).md)
+        """
+        journal_dir = log_dir / "journals"
+        for file_path in journal_dir.iterdir():
+            if file_path.suffix == ".md":
+                if file_path.name.startswith(f"{target_year}_{target_month:02d}"):
                     aggregated_content.append(f"\n--- Content from {file_path.name} ---\n{file_path.read_text(encoding='utf-8')}")
+
+        weekly_dir = log_dir / "pages"
+        for file_path in weekly_dir.iterdir():
+            if file_path.suffix == ".md":
+                match = re.fullmatch(rf"(\d{{4}})___W(\d{{2}})_(\d{{2}}\.\d{{2}})\.md", file_path.name)
+                if match:
+                    log_year, log_week = int(match.group(1)), int(match.group(2))
+                    if log_year == target_year and log_week in weeks_in_month:
+                        aggregated_content.append(
+                            f"\n--- Content from {file_path.name} ---\n{file_path.read_text(encoding='utf-8')}")
+
+    else:
+        for file_path in log_dir.iterdir():
+            if file_path.suffix == ".md":
+                if file_path.name.startswith(f"daily-log-{target_year}-{target_month:02d}"):
+                    aggregated_content.append(f"\n--- Content from {file_path.name} ---\n{file_path.read_text(encoding='utf-8')}")
+                match = re.fullmatch(rf"(\d{{4}})-W(\d{{2}})\.md", file_path.name)
+                if match:
+                    log_year, log_week = int(match.group(1)), int(match.group(2))
+                    if log_year == target_year and log_week in weeks_in_month:
+                        aggregated_content.append(f"\n--- Content from {file_path.name} ---\n{file_path.read_text(encoding='utf-8')}")
 
     if not aggregated_content:
         print(f"\nNo log files found for {month_name} {target_year}. Nothing to summarize.")
@@ -199,7 +206,7 @@ def run_monthly_summary(month_arg=None):
     """) + "\n<personal_logs>" + full_log_text + "\n</personal_logs>"
 
     print("\nSending data to Gemini for analysis... This may take a moment.")
-    solver = AtomicSolver(base_model_name="gemini-2.5-flash", thinking_model_name=api_model, api_key=api_key)
+    solver = AtomicSolver(api_key=os.getenv("gemini_api_key"))
 
     try:
         # model = genai.GenerativeModel(api_model)
@@ -210,8 +217,16 @@ def run_monthly_summary(month_arg=None):
         print(f"\n❌ An error occurred with the Gemini API: {e}")
         return
 
-    summary_file_name = f"Summary-{target_year}-{target_month:02d}.md"
-    summary_file_path = log_dir / summary_file_name
+    # Summary file name is in the format: <year>/Progress/<monthname>.md
+    # Example: 2025/Progress/November.md
+    month_name = target_month.strftime("%B")
+    summary_file_name = f"{target_year}___Progress___{month_name}.md"
+
+    if logseq:
+        summary_file_name = f"{target_year}___Progress___{month_name}.md"
+        summary_file_path = log_dir / "pages" / summary_file_name
+    else:
+        summary_file_path = log_dir / summary_file_name
 
     try:
         summary_file_path.write_text(summary_text, encoding="utf-8")
@@ -222,39 +237,62 @@ def run_monthly_summary(month_arg=None):
 
 # --- WEEKLY & DAILY LOG FUNCTIONS (Unchanged) ---
 # ... (all functions from `run_sow_log` to `write_daily_log_file` are here, unchanged) ...
-def run_sow_log():
+def run_sow_log(logseq=False):
     print("\n--- 🚀 Start of Week Planning ---")
     log_dir = get_log_directory()
     today = datetime.date.today()
     year, week, _ = today.isocalendar()
     start_of_week = today - datetime.timedelta(days=today.weekday())
     end_of_week = start_of_week + datetime.timedelta(days=6)
-    file_name = f"{year}-W{week:02d}.md"
-    file_path = log_dir / file_name
+
+    if logseq:
+        file_name = f"{year}___W{week:02d}___({start_of_week.strftime('%d.%m.')} - {end_of_week.strftime('%d.%m.')}).md"
+        file_path = log_dir / "pages" / file_name
+    else:
+        file_name = f"{year}-W{week:02d}.md"
+        file_path = log_dir / file_name
+
     print(f"\nThis will create/overwrite the weekly log at: {file_path}")
     goals = get_bullet_points("Set yourself one or two or three goals for the week.")
     next_steps = get_bullet_points("What are the next steps you need to take to achieve your goals?")
     other_tasks = get_bullet_points("What other tasks spring to mind?")
     try:
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(f"# Weekly Log for {year}, Week {week}\n")
-            f.write(f"_{start_of_week.strftime('%B %d')} - {end_of_week.strftime('%B %d, %Y')}_\n\n")
-            f.write("## My Goals for the Week\n"); [f.write(f"- {item}\n") for item in goals] if goals else f.write("- N/A\n"); f.write("\n")
-            f.write("## Next Steps\n"); [f.write(f"- {item}\n") for item in next_steps] if next_steps else f.write("- N/A\n"); f.write("\n")
-            f.write("## Other Tasks\n"); [f.write(f"- {item}\n") for item in other_tasks] if other_tasks else f.write("- N/A\n"); f.write("\n")
+            if logseq:
+                f.write(f"exclude-from-graph-view:: true\n\n")
+                f.write(f"- # Weekly Log for {year}, Week {week}\n")
+                f.write(f"_{start_of_week.strftime('%B %d')} - {end_of_week.strftime('%B %d, %Y')}_\n\n")
+                f.write("- ## My Goals for the Week\n"); [f.write(f"- {item}\n") for item in goals] if goals else f.write("- N/A\n"); f.write("\n")
+                f.write("- ## Next Steps\n"); [f.write(f"- {item}\n") for item in next_steps] if next_steps else f.write("- N/A\n"); f.write("\n")
+                f.write("- ## Other Tasks\n"); [f.write(f"- {item}\n") for item in other_tasks] if other_tasks else f.write("- N/A\n"); f.write("\n")
+            else:
+                f.write(f"# Weekly Log for {year}, Week {week}\n")
+                f.write(f"_{start_of_week.strftime('%B %d')} - {end_of_week.strftime('%B %d, %Y')}_\n\n")
+                f.write("## My Goals for the Week\n"); [f.write(f"- {item}\n") for item in goals] if goals else f.write("- N/A\n"); f.write("\n")
+                f.write("## Next Steps\n"); [f.write(f"- {item}\n") for item in next_steps] if next_steps else f.write("- N/A\n"); f.write("\n")
+                f.write("## Other Tasks\n"); [f.write(f"- {item}\n") for item in other_tasks] if other_tasks else f.write("- N/A\n"); f.write("\n")
         print(f"\n✅ Successfully saved Start of Week plan to: {file_path}")
     except IOError as e: print(f"\n❌ Error: Could not write to file {file_path}. Reason: {e}")
 
-def run_eow_log():
+def run_eow_log(logseq=False):
     print("\n--- ⭐ End of Week Review ---")
     log_dir = get_log_directory()
     today = datetime.date.today()
     year, week, _ = today.isocalendar()
-    file_name = f"{year}-W{week:02d}.md"
-    file_path = log_dir / file_name
+    
+    if logseq:
+        start_of_week = today - datetime.timedelta(days=today.weekday())
+        end_of_week = start_of_week + datetime.timedelta(days=6)
+        file_name = f"{year}___W{week:02d}___({start_of_week.strftime('%d.%m.')} - {end_of_week.strftime('%d.%m.')}).md"
+        file_path = log_dir / "pages" / file_name
+    else:
+        file_name = f"{year}-W{week:02d}.md"
+        file_path = log_dir / file_name
+    
     if not file_path.exists():
         print(f"\n❌ Error: Weekly log '{file_path}' not found. Please run --sow first.")
         return
+    
     print(f"\nThis will append a review to the weekly log at: {file_path}")
     went_well = get_multiline_input("Based on your logs: What went well?")
     happy_about = get_multiline_input("What are you happy about?")
@@ -262,11 +300,19 @@ def run_eow_log():
     progress = get_multiline_input("Please describe any progress that you have observed.")
     try:
         with open(file_path, "a", encoding="utf-8") as f:
-            f.write("\n---\n\n## End of Week Review\n\n")
-            f.write(f"### What went well?\n{went_well if went_well.strip() else 'N/A'}\n\n")
-            f.write(f"### What are you happy about?\n{happy_about if happy_about.strip() else 'N/A'}\n\n")
-            f.write(f"### What made you laugh?\n{made_laugh if made_laugh.strip() else 'N/A'}\n\n")
-            f.write(f"### Please describe any progress that you have observed.\n{progress if progress.strip() else 'N/A'}\n\n")
+            if logseq:
+                f.write("\n- ---\n")
+                f.write("- ## End of Week Review\n")
+                f.write(f" - ### What went well?\n{went_well if went_well.strip() else 'N/A'}\n\n")
+                f.write(f" - ### What are you happy about?\n{happy_about if happy_about.strip() else 'N/A'}\n\n")
+                f.write(f" - ### What made you laugh?\n{made_laugh if made_laugh.strip() else 'N/A'}\n\n")
+                f.write(f" - ### Please describe any progress that you have observed.\n{progress if progress.strip() else 'N/A'}\n\n")
+            else:
+                f.write("\n---\n\n## End of Week Review\n\n")
+                f.write(f"### What went well?\n{went_well if went_well.strip() else 'N/A'}\n\n")
+                f.write(f"### What are you happy about?\n{happy_about if happy_about.strip() else 'N/A'}\n\n")
+                f.write(f"### What made you laugh?\n{made_laugh if made_laugh.strip() else 'N/A'}\n\n")
+                f.write(f"### Please describe any progress that you have observed.\n{progress if progress.strip() else 'N/A'}\n\n")
         print(f"\n✅ Successfully appended End of Week review to: {file_path}")
     except IOError as e: print(f"\n❌ Error: Could not write to file {file_path}. Reason: {e}")
 
@@ -341,10 +387,14 @@ def write_daily_log_file(file_path: Path, output_lines: list[str]):
         print(f"\n✅ Successfully saved daily log to: {file_path}")
     except IOError as e: print(f"\n❌ Error: Could not write to file {file_path}. Reason: {e}")
 
-def run_daily_log():
+def run_daily_log(logseq=False):
+    if logseq:
+        # let user know he should be using logseqs' daily log feature (journal) instead
+        print("\n❌ Error: Daily log feature is not supported for Logseq. Please use Logseq's journal feature instead.")
+        return
     print("📝 Daily Log Script")
     print("----------------------------------------------------------")
-    log_dir = get_log_directory()
+    log_dir = get_log_directory(logseq=logseq)
     today_date_str = datetime.date.today().strftime("%Y-%m-%d")
     file_name = f"daily-log-{today_date_str}.md"
     file_path = log_dir / file_name
@@ -366,7 +416,6 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--sow", action="store_true", help="Run the Start of Week (SOW) questions.")
     group.add_argument("--eow", action="store_true", help="Run the End of Week (EOW) questions.")
-    # --- UPDATED ARGUMENT ---
     group.add_argument(
         "--monthly-summary",
         nargs='?', # Makes the value optional.
@@ -376,17 +425,22 @@ def main():
         metavar='MONTH', # A name for the value in help text.
         help="Generate a summary for a specific month of the current year (e.g., 5 for May).\nIf no month number is given, summarizes the previous full month."
     )
+    parser.add_argument(
+        "--logseq",
+        action="store_true",
+        help="Use a logseq folder for aggregation."
+    )
 
     args = parser.parse_args()
 
     if args.sow:
-        run_sow_log()
+        run_sow_log(logseq=args.logseq)
     elif args.eow:
-        run_eow_log()
+        run_eow_log(logseq=args.logseq)
     elif args.monthly_summary is not None:
-        run_monthly_summary(args.monthly_summary)
+        run_monthly_summary(month=args.monthly_summary, logseq=args.logseq)
     else:
-        run_daily_log()
+        run_daily_log(logseq=args.logseq)
 
     print("\nScript finished.")
 
