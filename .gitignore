@@ -1,4 +1,5 @@
-.venv/
+venv/
 .env
 .ropeproject/
 .idea/
+__pycache__
