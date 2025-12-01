@@ -17,30 +17,29 @@ class RouterResponse(TypedDict):
 class AtomicSolver:
     def __init__(self, api_key: str, model_name: str = "gemini-3-pro-preview"):
         self.model_name = model_name
-        self.client = genai.Client(api_key)
+        self.client = genai.Client(api_key=api_key)
 
-    def _call_llm(self, prompt: str, temp: float = 0.2, thinking: bool = False) -> str:
+    def _call_llm(self, prompt: str, temp: float = 1.0, thinking: bool = False) -> str:
         """Stateless call to the API."""
         try:
-            if thinking:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=prompt,
-                    config=genai.types.GenerateContentConfig(
-                        temperature=temp
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    temperature=temp,
+                    thinking_config=genai.types.ThinkingConfig(
+                        thinking_level='high' if thinking else 'low'
                     )
                 )
-            else:
-                response = self.client.models.generate_content(
-                    contents=prompt,
-                    config=genai.types.GenerationConfig(
-                        temperature=temp,
-                        thinking_config=genai.types.ThinkingConfig(
-                            thinking_level='low'
-                        )
-                    )
-                )
-            return response.text.strip()
+            )
+
+            # Manually extract text to avoid warning about non-text parts (like thought_signature)
+            text_parts = []
+            if response.candidates:
+                for part in response.candidates[0].content.parts:
+                    if part.text:
+                        text_parts.append(part.text)
+            return "".join(text_parts).strip()
         except Exception as e:
             return f"# API Error: {e}"
 
@@ -61,13 +60,14 @@ class AtomicSolver:
         {main_goal}
 
         TASK:
-        Break this goal down into 5-10 sequential, atomic steps. The final step needs to be: "Draft the final report following the required template structure, populating each section with the derived data and formulating actionable recommendations."
+        Break this goal down into 4 sequential, atomic steps. The final step needs to be: "Draft the final report following the required template structure, populating each section with the derived data and formulating actionable recommendations."
         Return ONLY a raw JSON list of strings.
 
         Example: ["Research topic X", "Draft introduction", "Summarize key points"]
         """
 
-        raw = self._call_llm(prompt, temp=0.1, thinking=True)
+        raw = self._call_llm(prompt, thinking=True)
+        print(f"   -> Raw: {raw}")
         # Attempt to clean JSON
         clean_json = re.sub(r"```json|```", "", raw).strip()
 
@@ -104,7 +104,7 @@ class AtomicSolver:
         **Output Format:**
         Return a valid JSON object with the key "classifications" containing a list of objects, each with "task_id" (0-x), "model" ("A" or "B"), and "rationale".
         """
-        raw = self._call_llm(prompt_template, temp=0.0, thinking=True)
+        raw = self._call_llm(prompt_template, thinking=True)
 
         # Attempt to clean JSON
         clean_json = re.sub(r"```json|```", "", raw).strip()
@@ -130,17 +130,17 @@ class AtomicSolver:
         CRITICAL CONSTRAINT: 
         Your response must allow for easy verification. 
         Structure your answer as:
-        1. [Key Concept/Direct Answer]
-        2. [Supporting Evidence]
+        <Key Concept/Direct Answer>
+        <Supporting Evidence>
         """
 
 
         for i in range(vote_count):
             # Vary temp to get diverse approaches
             if model['model'] == "A":
-                res = self._call_llm(prompt_template, temp=0.1 + (i * 0.25), thinking=False)
+                res = self._call_llm(prompt_template, temp=1.0 + (i * 0.25), thinking=False)
             else:
-                res = self._call_llm(prompt_template, temp=0.1 + (i * 0.25), thinking=True)
+                res = self._call_llm(prompt_template, temp=1.0 + (i * 0.25), thinking=True)
             candidates.append(res)
 
         # Shuffle candidates to prevent bias
@@ -180,21 +180,14 @@ class AtomicSolver:
         1. Analyze the differences between A, B, and C.
         2. If two responses agree and one contradicts, heavily penalize the outlier (unless the outlier is obviously factually superior).
         3. Select the winner.
-        4. Return ONLY the winning response (A, B, or C).
+        4. Return ONLY the winning <Key Concept/Direct Answer> response.
         """
 
-        winner_idx = 0
-        try:
-            winner_raw = self._call_llm(judge_prompt, temp=0.0, thinking=False)
-            if "B" in winner_raw: winner_idx = 1
-            if "C" in winner_raw: winner_idx = 2
+        winner_raw = self._call_llm(judge_prompt, thinking=False)
 
-            print(f"   -> Option {winner_idx + 1} won the vote.")
-        except Exception as e:
-            # Fallback: If JSON fails, default to the first response or log error
-            print(f"Voting failed: {e} - Defaulted to 1")
-
-        return candidates[winner_idx]
+        # remove html tags
+        winner_raw = re.sub(r"<.*?>", "", winner_raw)
+        return winner_raw
 
     def run(self, goal: str, context: str = "") -> str:
         state = ProblemState(context=context)
