@@ -72,7 +72,7 @@ def run_monthly_summary(month_arg=None, logseq=False):
     # --- UPDATED: Determine the target month and year ---
     today = datetime.date.today()
     target_year = today.year
-    target_month = None
+    target_month: int = today.month
 
     if month_arg is True: # User ran --monthly-summary with no number
         # Default to the previous full month
@@ -144,65 +144,72 @@ def run_monthly_summary(month_arg=None, logseq=False):
     print(f"Found {len(aggregated_content)} log entries. Total length: {len(full_log_text)} characters.")
 
     goal = f"""
-    As a helpful productivity coach, your task is to perform a deep and insightful analysis of the personal logs to help me understand my work patterns, celebrate successes, identify challenges, and improve in the future.
-    Generate a report with the exact following structure and headers (For each section, provide thoughtful, data-driven analysis based *only* on the personal logs provided).    
+    As a helpful productivity coach, your task is to perform a deep and insightful analysis of the personal logs to help me to:
+    - understand my work patterns,
+    - celebrate successes,
+    - identify challenges,
+    - improve in the future.
+
+    Generate a report with the exact following structure and headers.
+    For each section, provide thoughtful, data-driven analysis based *only* on the personal logs provided.
     """
 
     # full_prompt = prompt + "\n" + full_log_text
     context = (f"""
-    I am providing you with a collection of my personal logs from a specific period, which includes both daily and weekly entries. 
+I am providing you with a collection of my personal logs from a specific period, which includes both daily and weekly entries. 
+
+First, understand the structure of my logs:
+
+**Daily Logs** contain:
+    * `What I did`: A list of completed tasks.
+    * `What's next`: Planned future tasks.
+    * `What broke or got weird`: Challenges, bugs, and blockers.
+    * `Productivity Score`: A self-rated score from 1-5 for the day. A history may be present, where old scores are struck through (e.g., `- ~~3/5~~`, `- 4/5`). Please use the final, unstruck score for any daily analysis.
+
+**Weekly Logs** contain:
+    * **Start of Week (SOW):** `My Goals for the Week`, `Next Steps`, and `Other Tasks`.
+    * **End of Week (EOW):** A review with `What went well?`, `What are you happy about?`, `What made you laugh?`, and `Progress observed`.
     
-    First, understand the structure of my logs:
+<Report_Template>
+# Productivity & Progress Analysis for <month_name>/<year>
 
-    * **Daily Logs** contain:
-        * `What I did`: A list of completed tasks.
-        * `What's next`: Planned future tasks.
-        * `What broke or got weird`: Challenges, bugs, and blockers.
-        * `Productivity Score`: A self-rated score from 1-5 for the day. A history may be present, where old scores are struck through (e.g., `- ~~3/5~~`, `- 4/5`). Please use the final, unstruck score for any daily analysis.
-    * **Weekly Logs** contain:
-        * **Start of Week (SOW):** `My Goals for the Week`, `Next Steps`, and `Other Tasks`.
-        * **End of Week (EOW):** A review with `What went well?`, `What are you happy about?`, `What made you laugh?`, and `Progress observed`.
-        
-    <Report_Template>
-    # Productivity & Progress Analysis for <month_name>/<year>
+- ## 🎯 Executive Summary
+Provide a 2-3 sentence high-level summary of the period. What was the main story of this month/week? Was it a period of high achievement, overcoming challenges, or steady progress?
 
-    ## 🎯 Executive Summary
-    Provide a 2-3 sentence high-level summary of the period. What was the main story of this month/week? Was it a period of high achievement, overcoming challenges, or steady progress?
+- ## ✅ Accomplishments vs. Goals
+Analyze the alignment between my stated weekly goals and my daily actions.
 
-    ## ✅ Accomplishments vs. Goals
-    Analyze the alignment between my stated weekly goals and my daily actions.
+    - **Goals Achieved:** List the weekly goals that were clearly met, citing specific entries from "What I did" or "What went well" as evidence.
+    - **Goals Partially Achieved or Missed:** Identify goals that were not fully completed or mentioned. Speculate on why, based on the "What broke or got weird" sections or a lack of related daily tasks.
+    - **Unplanned Accomplishments:** Highlight significant achievements from the "What I did" logs that are not part of the stated weekly goals.
 
-    * **Goals Achieved:** List the weekly goals that were clearly met, citing specific entries from "What I did" or "What went well" as evidence.
-    * **Goals Partially Achieved or Missed:** Identify goals that were not fully completed or mentioned. Speculate on why, based on the "What broke" sections or a lack of related daily tasks.
-    * **Unplanned Accomplishments:** Highlight significant achievements from the "What I did" logs that were not part of the stated weekly goals.
+- ## 📈 Productivity Analysis
+Perform a quantitative and qualitative analysis of my productivity scores.
 
-    ## 📈 Productivity Analysis
-    Perform a quantitative and qualitative analysis of my productivity scores.
+    - **Score Overview:** What was my average productivity score? What was the range of scores (highest and lowest)?
+    - **Trend Analysis:** Was there a noticeable trend in productivity (e.g., increasing over the month, higher at the start of the week vs. the end)?
+    - **Correlation:** Correlate the highest-rated productivity days with the activities performed on those days. What kind of work leads to a feeling of high productivity? Conversely, what activities or events from the "What broke or got weird" section correspond with the lowest-rated days?
 
-    * **Score Overview:** What was my average productivity score? What was the range of scores (highest and lowest)?
-    * **Trend Analysis:** Was there a noticeable trend in productivity (e.g., increasing over the month, higher at the start of the week vs. the end)?
-    * **Correlation:** Correlate the highest-rated productivity days with the activities performed on those days. What kind of work leads to a feeling of high productivity? Conversely, what activities or events from the "What broke" section correspond with the lowest-rated days?
+- ## 🚧 Recurring Challenges & Blockers
+Synthesize all entries from "What broke or got weird" across the daily logs.
 
-    ## 🚧 Recurring Challenges & Blockers
-    Synthesize all entries from "What broke or got weird" across the daily logs.
+    - **Identify Themes:** Group similar problems together to identify recurring patterns. Are there repeated technical issues, specific types of interruptions, or common sources of frustration?
+    - **Impact Assessment:** Briefly describe the likely impact of these recurring issues on my goals and productivity.
 
-    * **Identify Themes:** Group similar problems together to identify recurring patterns. Are there repeated technical issues, specific types of interruptions, or common sources of frustration?
-    * **Impact Assessment:** Briefly describe the likely impact of these recurring issues on my goals and productivity.
+- ## 😊 Sources of Success & Happiness
+Analyze the qualitative data from the End of Week reviews to understand the drivers of success and well-being.
 
-    ## 😊 Sources of Success & Happiness
-    Analyze the qualitative data from the End of Week reviews to understand the drivers of success and well-being.
+    - **What Drives Success:** What are the common themes in the "What went well" and "Progress observed" sections?
+    - **Sources of Joy:** What patterns do you see in the "What are you happy about?" and "What made you laugh?" sections? This helps identify what makes the work sustainable and enjoyable.
 
-    * **What Drives Success:** What are the common themes in the "What went well" and "Progress observed" sections?
-    * **Sources of Joy:** What patterns do you see in the "What are you happy about?" and "What made you laugh?" sections? This helps identify what makes the work sustainable and enjoyable.
+- ## 🌱 Actionable Recommendations
+Based on your entire analysis, provide a short list of concrete, actionable recommendations for the next period.
 
-    ## 🌱 Actionable Recommendations
-    Based on your entire analysis, provide a short list of concrete, actionable recommendations for the next period.
-
-    1.  **To Capitalize on Strengths:** Suggest one action to double down on what's already working well.
-    2.  **To Address Challenges:** Propose one specific strategy to mitigate the most significant recurring blocker you identified.
-    3.  **To Improve Alignment:** Recommend one way I can better align my daily tasks with my weekly goals.
-    4.  **A Question for Reflection:** Pose one insightful question for me to think about during my next planning session.
-    </Report_Template>
+    - **To Capitalize on Strengths:** Suggest one action to double down on what's already working well.
+    - **To Address Challenges:** Propose one specific strategy to mitigate the most significant recurring blocker you identified.
+    - **To Improve Alignment:** Recommend one way I can better align my daily tasks with my weekly goals.
+    - **A Question for Reflection:** Pose one insightful question for me to think about during my next planning session.
+</Report_Template>
     """) + "\n<personal_logs>" + full_log_text + "\n</personal_logs>"
 
     print("\nSending data to Gemini for analysis... This may take a moment.")
@@ -219,11 +226,10 @@ def run_monthly_summary(month_arg=None, logseq=False):
 
     # Summary file name is in the format: <year>/Progress/<monthname>.md
     # Example: 2025/Progress/November.md
-    month_name = target_month.strftime("%B")
+    month_name = calendar.month_name[target_month]
     summary_file_name = f"{target_year}___Progress___{month_name}.md"
 
     if logseq:
-        summary_file_name = f"{target_year}___Progress___{month_name}.md"
         summary_file_path = log_dir / "pages" / summary_file_name
     else:
         summary_file_path = log_dir / summary_file_name
@@ -246,11 +252,11 @@ def run_sow_log(logseq=False):
     end_of_week = start_of_week + datetime.timedelta(days=6)
 
     if logseq:
-        file_name = f"{year}___W{week:02d}___({start_of_week.strftime('%d.%m.')} - {end_of_week.strftime('%d.%m.')}).md"
-        file_path = log_dir / "pages" / file_name
+        file_name = f"{year}___W{week:02d} ({start_of_week.strftime('%d.%m.')} - {end_of_week.strftime('%d.%m.')}).md"
+        file_path = f"{log_dir}/pages/{file_name}"
     else:
         file_name = f"{year}-W{week:02d}.md"
-        file_path = log_dir / file_name
+        file_path = f"{log_dir}/{file_name}"
 
     print(f"\nThis will create/overwrite the weekly log at: {file_path}")
     goals = get_bullet_points("Set yourself one or two or three goals for the week.")
@@ -283,7 +289,7 @@ def run_eow_log(logseq=False):
     if logseq:
         start_of_week = today - datetime.timedelta(days=today.weekday())
         end_of_week = start_of_week + datetime.timedelta(days=6)
-        file_name = f"{year}___W{week:02d}___({start_of_week.strftime('%d.%m.')} - {end_of_week.strftime('%d.%m.')}).md"
+        file_name = f"{year}___W{week:02d} ({start_of_week.strftime('%d.%m.')} - {end_of_week.strftime('%d.%m.')}).md"
         file_path = log_dir / "pages" / file_name
     else:
         file_name = f"{year}-W{week:02d}.md"
@@ -394,7 +400,7 @@ def run_daily_log(logseq=False):
         return
     print("📝 Daily Log Script")
     print("----------------------------------------------------------")
-    log_dir = get_log_directory(logseq=logseq)
+    log_dir = get_log_directory()
     today_date_str = datetime.date.today().strftime("%Y-%m-%d")
     file_name = f"daily-log-{today_date_str}.md"
     file_path = log_dir / file_name
@@ -438,7 +444,7 @@ def main():
     elif args.eow:
         run_eow_log(logseq=args.logseq)
     elif args.monthly_summary is not None:
-        run_monthly_summary(month=args.monthly_summary, logseq=args.logseq)
+        run_monthly_summary(month_arg=args.monthly_summary, logseq=args.logseq)
     else:
         run_daily_log(logseq=args.logseq)
 
